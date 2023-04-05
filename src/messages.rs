@@ -19,6 +19,7 @@ pub trait SimpleJSON<'a> {
 pub enum ServerMessages {
     PlayerPositionUpdate(u32, Vector2),
     MapDisplay(String),
+    PlayerDisconnected(u32),
     BadMessageFormatting,
 }
 

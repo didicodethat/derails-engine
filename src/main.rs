@@ -1,5 +1,8 @@
 use std::collections::HashMap;
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::{mpsc, Mutex};
+use tokio::time::{sleep, Duration};
 use tokio::net::{TcpListener, TcpStream};
 use futures_util::{future, StreamExt, TryStreamExt};
 
@@ -12,17 +15,57 @@ mod vector2;
 mod game_map;
 mod messages;
 
-#[derive(Serialize, Deserialize)]
+type PlayerSink = futures_util::stream::SplitSink<tokio_tungstenite::WebSocketStream<TcpStream>, tokio_tungstenite::tungstenite::Message>;
+
+type WebsocketError = tokio_tungstenite::tungstenite::Error;
+
+#[derive(Copy, Clone, Debug)]
 enum PlayerActions {
     MoveTo(Vector2),
-    Idle
+    Idle,
+    Disconnect,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug)]
+struct PlayerAction {
+    id: u32,
+    action: PlayerActions
+}
+
+impl PlayerAction {
+    pub fn disconnect(id: u32) -> Self {
+        Self {id, action: PlayerActions::Disconnect}
+    }
+}
+
+
+struct PlayerConnected {
+    id: u32,
+    sink: PlayerSink
+}
+
 struct Player {
     position: Vector2,
     current_action: PlayerActions,
 }
+
+struct PlayerConnection {
+    sink: PlayerSink,
+    player: Player
+}
+
+impl PlayerConnection {
+    fn new(sink: PlayerSink) -> Self {
+        Self {
+            sink,
+            player: Player{
+                position: Vector2(0, 0),
+                current_action : PlayerActions::Idle
+            }
+        }
+    }
+}
+
 
 impl Player {
     fn new(position : Vector2) -> Self {
@@ -69,12 +112,22 @@ async fn main() {
     // Create the event loop and TCP listener we'll accept connections on.
     let try_socket = TcpListener::bind(&addr).await;
     let listener = try_socket.expect("Failed to bind");
+    let (player_action_sender, mut player_action_receiver) = mpsc::channel::<PlayerAction>(32);
+    let (player_connect_sender, mut player_connect_receiver) = mpsc::channel::<PlayerConnected>(32);
 
+    tokio::spawn(async move {game_logic(&mut player_connect_receiver, &mut player_action_receiver).await});
+    let mut player_connection_identifier = 0u32;
     while let Ok((stream, _)) = listener.accept().await {
-        tokio::spawn(accept_connection(stream));
+        player_connection_identifier += 1;
+        tokio::spawn(accept_connection(
+            player_connection_identifier, 
+            stream, 
+            player_connect_sender.to_owned(),
+            player_action_sender.to_owned()
+        ));
     }
 }
-async fn accept_connection(stream: TcpStream) {
+async fn accept_connection(id: u32, stream: TcpStream, send_connect: Sender<PlayerConnected>, send_action: Sender<PlayerAction>) {
     let addr = stream.peer_addr().expect("connected streams should have a peer address");
 
     let ws_stream = tokio_tungstenite::accept_async(stream)
@@ -82,7 +135,7 @@ async fn accept_connection(stream: TcpStream) {
         .expect("Error during the websocket handshake occurred");
 
     let (write, mut read) = ws_stream.split();
-
+    send_connect.send(PlayerConnected { id, sink: write });
     while let Some(message) = read.next().await {
         match message {
             Ok(message) => {
@@ -96,12 +149,50 @@ async fn accept_connection(stream: TcpStream) {
                     }   
                 }
             },
-            Err(_) => {
-                println!("Couldn't read this message");
+            Err(e) => {
+                match e {
+                    WebsocketError::AlreadyClosed => {
+                        // close connection
+                        send_action.send(PlayerAction::disconnect(id));
+                    },
+                    _ => print!("got a unhandable error"),
+                }
             }
         }
     }
 
     // We should not forward messages other than text or binary.
      
+}
+
+async fn game_logic(player_connections : &mut Receiver<PlayerConnected>, player_actions : &mut Receiver<PlayerAction>) {
+    let mut connected_players : HashMap<u32, PlayerConnection> = HashMap::new();
+    loop {
+        //let broadcast_responses = Vec::new();
+
+        // add new players to the connection hashmap
+        while let Some(connection) = player_connections.recv().await {
+            connected_players.insert(connection.id, PlayerConnection::new(connection.sink));
+        }
+
+        // set their actions
+        while let Some(action) = player_actions.recv().await {
+            let entry = connected_players.get_mut(&action.id);
+            if let Some(player_connection) = entry {
+                player_connection.player.current_action = action.action;
+            }
+        }
+
+        // execute their actions
+        for mut connection in connected_players.values() {
+            
+        }
+
+        // send global actions
+        for mut connection in connected_players.values() {
+
+        }
+
+        sleep(Duration::from_millis(1000)).await; 
+    }
 }
