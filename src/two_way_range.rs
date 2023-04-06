@@ -1,24 +1,24 @@
-pub struct TwoWayRange{
+pub struct TwoWayRange {
     start: i32,
     end: i32,
     step: i32,
-    current: i32
+    current: i32,
 }
 #[derive(Debug)]
 pub enum TwoWayRangeError {
-    ZeroStep
+    ZeroStep,
 }
 
 impl TwoWayRange {
-    pub fn new(start: i32, end: i32, step: i32) -> Result<Self,TwoWayRangeError> {
+    pub fn new(start: i32, end: i32, step: i32) -> Result<Self, TwoWayRangeError> {
         if step == 0 {
             return Err(TwoWayRangeError::ZeroStep);
         }
         Ok(Self {
-            start, 
+            start,
             end,
             step,
-            current: start
+            current: start,
         })
     }
     #[inline]

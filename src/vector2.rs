@@ -1,5 +1,5 @@
-use serde::{Serialize, Deserialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Hash, Eq, PartialEq, Debug, Clone, Copy, JsonSchema)]
 pub struct Vector2(pub i32, pub i32);
@@ -15,13 +15,18 @@ impl std::fmt::Display for Vector2 {
         write!(f, "Vector2({}, {})", self.0, self.1)
     }
 }
+
+#[derive(Clone, Copy)]
 pub struct Vector2Range {
-    x: i32, y: i32,
+    x: i32,
+    y: i32,
     x2: i32,
     yaxis: bool,
-    w: i32, h: i32,
-    dx: i32, dy: i32,
-    e: i32
+    w: i32,
+    h: i32,
+    dx: i32,
+    dy: i32,
+    e: i32,
 }
 
 impl Vector2Range {
@@ -29,13 +34,16 @@ impl Vector2Range {
         let mut x1 = from.0;
         let mut y1 = from.1;
         let mut y2 = to.1;
-        let mut tmp = Self{
+        let mut tmp = Self {
             x2: to.0,
-            yaxis: i32::abs(to.1-from.1) > i32::abs(to.0-from.0),
-            w: 0, h: 0,
-            dx: 0, dy: 0,
-            y: 0, x: 0,
-            e: 0
+            yaxis: i32::abs(to.1 - from.1) > i32::abs(to.0 - from.0),
+            w: 0,
+            h: 0,
+            dx: 0,
+            dy: 0,
+            y: 0,
+            x: 0,
+            e: 0,
         };
 
         if tmp.yaxis {

@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ServerMessages",
+  "oneOf": [
+    {
+      "type": "string",
+      "enum": [
+        "BadMessageFormatting"
+      ]
+    },
+    {
+      "type": "object",
+      "required": [
+        "BroadCastAction"
+      ],
+      "properties": {
+        "BroadCastAction": {
+          "type": "array",
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "$ref": "#/definitions/PlayerBroadcastAction"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "MapDisplay"
+      ],
+      "properties": {
+        "MapDisplay": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "PlayerConnected"
+      ],
+      "properties": {
+        "PlayerConnected": {
+          "type": "array",
+          "items": [
+            {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            {
+              "$ref": "#/definitions/Vector2"
+            }
+          ],
+          "maxItems": 2,
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "PlayerDisconnected"
+      ],
+      "properties": {
+        "PlayerDisconnected": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "PlayerBroadcastAction": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": [
+            "None"
+          ]
+        },
+        {
+          "type": "object",
+          "required": [
+            "Step"
+          ],
+          "properties": {
+            "Step": {
+              "$ref": "#/definitions/Vector2"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Vector2": {
+      "type": "array",
+      "items": [
+        {
+          "type": "integer",
+          "format": "int32"
+        },
+        {
+          "type": "integer",
+          "format": "int32"
+        }
+      ],
+      "maxItems": 2,
+      "minItems": 2
+    }
+  }
+}

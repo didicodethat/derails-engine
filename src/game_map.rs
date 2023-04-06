@@ -3,15 +3,15 @@ use crate::vector2::{Vector2, Vector2Range};
 pub enum TileType {
     Walkable(char),
     Wall(char),
-    OutOfBounds(char)
+    OutOfBounds(char),
 }
 
 impl TileType {
-    pub fn from_char (tile : char) -> Self {
+    pub fn from_char(tile: char) -> Self {
         match tile {
             '#' => Self::Wall(tile),
             '.' => Self::Walkable(tile),
-            _ => Self::OutOfBounds(tile)
+            _ => Self::OutOfBounds(tile),
         }
     }
 }
@@ -28,33 +28,33 @@ impl std::fmt::Display for TileType {
 
 type WalkMap = std::collections::HashMap<Vector2, TileType>;
 
-pub struct GameMap{
+pub struct GameMap {
     pub string_map: String,
     width: i32,
-    walk_map: WalkMap
+    walk_map: WalkMap,
 }
 
 pub enum WalkResult {
     Finished(Vector2),
-    Unfinished{
-        hit: Vector2,
-        safe: Vector2
-    }
+    Unfinished { hit: Vector2, safe: Vector2 },
 }
 
 impl GameMap {
     pub fn from_file_path(file_path: &str, width: i32) -> Self {
-        let string_map = std::fs::read_to_string(&file_path).expect("Should be able to open the map file");
+        let string_map =
+            std::fs::read_to_string(&file_path).expect("Should be able to open the map file");
         let mut walk_map = WalkMap::new();
         for (y, line) in string_map.lines().enumerate() {
             for (x, char) in line.chars().enumerate() {
-                walk_map.entry(Vector2(x as i32, y as i32)).or_insert(TileType::from_char(char));
+                walk_map
+                    .entry(Vector2(x as i32, y as i32))
+                    .or_insert(TileType::from_char(char));
             }
         }
         Self {
             string_map: string_map,
             width,
-            walk_map
+            walk_map,
         }
     }
 
@@ -68,9 +68,9 @@ impl GameMap {
         let mut last = from.clone();
         for position in Vector2Range::new(from, to) {
             if let TileType::Wall(_) | TileType::OutOfBounds(_) = self.on_position(&position) {
-                return WalkResult::Unfinished{
+                return WalkResult::Unfinished {
                     hit: position,
-                    safe: last
+                    safe: last,
                 };
             }
             last = position;
@@ -87,6 +87,7 @@ impl GameMap {
 
     pub fn set_char(&mut self, position: &Vector2, to_place: char) {
         let index = (((self.width + 2) * position.1) + position.0) as usize;
-        self.string_map.replace_range(index..index+1, to_place.to_string().get(..1).unwrap())
+        self.string_map
+            .replace_range(index..index + 1, to_place.to_string().get(..1).unwrap())
     }
 }
