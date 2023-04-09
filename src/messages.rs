@@ -1,7 +1,6 @@
-use crate::vector2::Vector2;
+use crate::{player::PlayerConnectionId, vector2::Vector2};
 use schemars::{schema_for, JsonSchema};
 use serde::{Deserialize, Serialize};
-use serde_json;
 use std::{fs::File, io::Write};
 
 pub trait SimpleJSON<'a> {
@@ -26,15 +25,24 @@ impl<'a> SimpleJSON<'a> for PlayerBroadcastAction {
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]
 pub enum ServerMessages {
-    BroadCastAction(u32, PlayerBroadcastAction),
+    BroadCastAction(PlayerConnectionId, PlayerBroadcastAction),
     MapDisplay(String),
-    PlayerConnected(u32, Vector2),
-    PlayerDisconnected(u32),
+    PlayerConnected(PlayerConnectionId, Vector2),
+    PlayerDisconnected(PlayerConnectionId),
     BadMessageFormatting,
+    ConnectionError(String),
 }
 
 impl<'a> SimpleJSON<'a> for ServerMessages {
     type A = Self;
+}
+
+impl ServerMessages {
+    pub fn connetion_error() -> Self {
+        ServerMessages::ConnectionError(
+            "The server is up but couldn't connect right now.".to_string(),
+        )
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, JsonSchema)]

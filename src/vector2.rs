@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::mem::swap;
 
 #[derive(Serialize, Deserialize, Hash, Eq, PartialEq, Debug, Clone, Copy, JsonSchema)]
 pub struct Vector2(pub i32, pub i32);
@@ -16,7 +17,7 @@ impl std::fmt::Display for Vector2 {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct Vector2Range {
     x: i32,
     y: i32,
@@ -47,12 +48,13 @@ impl Vector2Range {
         };
 
         if tmp.yaxis {
-            let a = y1;
-            y1 = y1;
-            x1 = a;
-            let b = y2;
-            y2 = tmp.x2;
-            tmp.x2 = b;
+            swap(&mut y1, &mut x1);
+            swap(&mut y2, &mut tmp.x2);
+            // let a = y1;
+            // x1 = a;
+            // let b = y2;
+            // y2 = tmp.x2;
+            // tmp.x2 = b;
         }
         tmp.w = i32::abs(tmp.x2 - x1) + 1;
         tmp.h = i32::abs(y2 - y1) + 1;

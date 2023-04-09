@@ -25,7 +25,7 @@ impl TwoWayRange {
     fn do_step(&mut self) -> i32 {
         let before = self.current;
         self.current += self.step;
-        return before;
+        before
     }
 }
 
