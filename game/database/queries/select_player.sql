@@ -1,0 +1,1 @@
+SELECT players.* FROM players WHERE players.id = :id LIMIT 1;

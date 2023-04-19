@@ -1,83 +1,86 @@
-use std::fs::File;
+use clap::{Parser, Subcommand};
+use commons::get_settings;
+use std::{
+    env,
+    path::Path,
+};
 
-use futures_util::{SinkExt, StreamExt};
-use game_map::{GameMap, GameMapServer};
-use messages::{write_schemas_to_files, ServerMessages, SimpleJSON};
-use player::{PlayerConnection, PlayerConnectionId};
-use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::mpsc::error::SendError;
-use tokio::sync::mpsc::{self, Sender};
-use tokio::time::{sleep, Duration};
-use tokio_tungstenite::tungstenite::Message;
-mod game_map;
-mod messages;
-mod player;
-mod two_way_range;
-mod vector2;
+mod commons;
+mod server;
 
-pub type WebsocketError = tokio_tungstenite::tungstenite::Error;
-
-#[tokio::main]
-async fn main() {
-    write_schemas_to_files();
-    let addr = "127.0.0.1:8080".to_string();
-    let mut maps = vec![("maps/starting.map", 24)]
-        .into_iter()
-        .map(|(filename, width)| GameMap::from_file_path(filename, width))
-        .enumerate()
-        .map(|(id, map)| GameMapServer::new(id, map))
-        .collect::<Vec<GameMapServer>>();
-
-    let mut starting_map = maps.pop().unwrap();
-    // Create the event loop and TCP listener we'll accept connections on.
-    let try_socket = TcpListener::bind(&addr).await;
-    let listener = try_socket.expect("Failed to bind");
-
-    let funnel = starting_map.connection_funnel.to_owned();
-
-    tokio::spawn(async move {
-        let mut player_connection_identifier: PlayerConnectionId = 0;
-        while let Ok((stream, addr)) = listener.accept().await {
-            player_connection_identifier += 1;
-            tokio::spawn(accept_player_connection(
-                player_connection_identifier,
-                stream,
-                funnel.to_owned(),
-            ));
-        }
-    });
-
-    loop {
-        starting_map.step().await;
-        sleep(Duration::from_millis(300)).await
-    }
-
-    // on connect we choose which map the player should connect to
+#[derive(Parser)]
+#[command(
+    author = "didicodethat",
+    about = "MMO Server Engine",
+    long_about = "A Lua MMO server engine framework taking advantage of modern rs features."
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
 }
-async fn accept_player_connection(
-    id: PlayerConnectionId,
-    stream: TcpStream,
-    player_connected: Sender<PlayerConnection>,
-) {
-    let addr = stream
-        .peer_addr()
-        .expect("connected streams should have a peer address");
 
-    let ws_stream = tokio_tungstenite::accept_async(stream)
-        .await
-        .expect("Error during the websocket handshake occurred");
+#[derive(Subcommand)]
+enum Commands {
+    /// Starts the Server. alias: s
+    #[clap(alias = "s")]
+    Server {
+        /// Project folder to work on, if left empty will work on current directory.
+        project_folder: Option<String>,
+    },
+    /// Creates the Database
+    CreateDb {
+        /// Project folder to work on, if left empty will work on current directory.
+        project_folder: Option<String>,
+    },
+    /// Execute Migrations
+    DbMigrate {
+        /// Project folder to work on, if left empty will work on current directory.
+        project_folder: Option<String>,
+    },
+    /// Creates migration files
+    CreateDbMigration {
+        /// Project folder to work on, if left empty will work on current directory.
+        project_folder: Option<String>,
+        migration_name: String,
+    },
+    /// Standalone Script Generation From Messages
+    GenerateScripts {
+        /// Project folder to work on, if left empty will work on current directory.
+        project_folder: Option<String>,
+    },
+}
 
-    if let Err(mut error) = player_connected
-        .send(PlayerConnection::new(id, ws_stream))
-        .await
-    {
-        error
-            .0
-            .sink
-            .send(Message::text(
-                serde_json::to_string(&ServerMessages::connetion_error()).unwrap(),
-            ))
-            .await
-            .unwrap();
+fn extract_project_folder(command: &Commands) -> &Option<String> {
+    match command {
+        Commands::Server { project_folder } => project_folder,
+        Commands::CreateDb { project_folder } => project_folder,
+        Commands::DbMigrate { project_folder } => project_folder,
+        Commands::CreateDbMigration {
+            project_folder,
+            migration_name: _,
+        } => project_folder,
+        Commands::GenerateScripts { project_folder } => project_folder,
+    }
+}
+
+fn main() {
+    let cli = Cli::parse();
+    let command = cli.command;
+    let current_folder = ".".to_string();
+    let project_folder_string = extract_project_folder(&command)
+        .as_ref()
+        .unwrap_or(&current_folder);
+    let project_folder = Path::new(project_folder_string);
+    env::set_current_dir(project_folder).expect("Couldn't work with the set directory.");
+    let settings = get_settings();
+    match command {
+        Commands::Server { project_folder: _ } => crate::server::start_server(&settings),
+        Commands::CreateDb { project_folder: _ } => todo!(),
+        Commands::DbMigrate { project_folder: _ } => todo!(),
+        Commands::CreateDbMigration {
+            project_folder: _,
+            migration_name: _,
+        } => todo!(),
+        Commands::GenerateScripts { project_folder: _ } => todo!(),
     }
 }
